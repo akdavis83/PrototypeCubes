@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Final Neon Multi-Cube System</title>
+<style>
+  html, body { margin:0; overflow:hidden; background:black; }
+  #label {
+    position:fixed; bottom:20px; left:20px;
+    color:white; font-family:monospace; font-size:22px; font-weight:bold;
+  }
+</style>
+</head>
+
+<body>
+<a href="3d4.html"><div id="label">SHAKE UP</div></a>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/* ======================================================
+   BASIC SETUP
+====================================================== */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x000000);
+
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 0.1, 2000
+);
+camera.position.z = 9;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+
+/* ======================================================
+   COLOR GRADIENT: Deep blue → electric → cyan glow
+====================================================== */
+const palette = [
+  0x0022ff, 0x0044ff, 0x0066ff, 0x0088ff, 0x0099ff,
+  0x00bbff, 0x00ddff, 0x00faff, 0x33ffff, 0x55ffff,
+  0x77ffff
+];
+
+/* ======================================================
+   FUNCTION: Create a single neon cube line mesh
+====================================================== */
+function makeNeonCube(size, color) {
+  const geom = new THREE.BoxGeometry(size, size, size);
+  const edges = new THREE.EdgesGeometry(geom);
+
+  const mat = new THREE.LineBasicMaterial({
+    color,
+    transparent:true,
+    opacity:0.95,
+    blending: THREE.AdditiveBlending,
+    depthWrite:false,
+    linewidth:2
+  });
+
+  return new THREE.LineSegments(edges, mat);
+}
+
+
+/* ======================================================
+   CREATE OUTER + INNER rotating cube clusters
+====================================================== */
+const outerGroup = new THREE.Group();
+scene.add(outerGroup);
+
+const innerGroup = new THREE.Group();
+scene.add(innerGroup);
+
+const OUTER_COUNT = 20;
+const INNER_COUNT = 15;
+
+// sizes
+const outerBase = 3.2;
+const innerBase = 1.3;
+
+// track cubes for animation
+let outerCubes = [];
+let innerCubes = [];
+
+
+/* ---------- Create OUTER cubes ---------- */
+for (let i = 0; i < OUTER_COUNT; i++) {
+  const size = outerBase * (1 - i * 0.045);
+  const col = palette[i % palette.length];
+
+  const cube = makeNeonCube(size, col);
+
+  cube.userData.rx = Math.random() * 2;
+  cube.userData.ry = Math.random() * 2;
+  cube.userData.rz = Math.random() * 2;
+
+  outerGroup.add(cube);
+  outerCubes.push(cube);
+}
+
+
+/* ---------- Create INNER cubes ---------- */
+for (let i = 0; i < INNER_COUNT; i++) {
+  const size = innerBase * (1 - i * 0.06);
+  const col = palette[(i + 4) % palette.length];
+
+  const cube = makeNeonCube(size, col);
+
+  cube.userData.rx = Math.random() * 3;
+  cube.userData.ry = Math.random() * 3;
+  cube.userData.rz = Math.random() * 3;
+
+  innerGroup.add(cube);
+  innerCubes.push(cube);
+}
+
+
+/* ======================================================
+   ANIMATION LOOP
+====================================================== */
+function animate(t) {
+  t *= 0.001;
+
+  // flattening cycle: 0 → 1 → 0 repeating
+  const phase = (Math.sin(t * 1.6) + 1) / 2;
+  const flatten = Math.pow(phase, 3);  // smoother transition
+
+  /* ---- Animate outer cubes ---- */
+  outerCubes.forEach((cube, i) => {
+    const speed = 0.4 + i * 0.02;
+
+    // independent 3D rotations
+    cube.rotation.x = cube.userData.rx * t * speed * (1 - flatten);
+    cube.rotation.y = cube.userData.ry * t * speed * (1 - flatten);
+    cube.rotation.z = cube.userData.rz * t * speed * (1 - flatten);
+
+    // when flatten=1, cubes return to square
+    cube.rotation.x *= (1 - flatten);
+    cube.rotation.y *= (1 - flatten);
+    cube.rotation.z += flatten * 0.0;
+  });
+
+  /* ---- Animate inner core cubes ---- */
+  innerCubes.forEach((cube, i) => {
+    const speed = 0.8 + i * 0.04;
+
+    cube.rotation.x = cube.userData.rx * t * speed * (1 - flatten);
+    cube.rotation.y = cube.userData.ry * t * speed * (1 - flatten);
+    cube.rotation.z = cube.userData.rz * t * speed * (1 - flatten);
+  });
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+
+/* ======================================================
+   RESIZE
+====================================================== */
+window.addEventListener("resize", () => {
+  const w = window.innerWidth;
+  const h = window.innerHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+});
+</script>
+</body>
+</html>

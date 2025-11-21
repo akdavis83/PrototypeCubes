@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neon Multi-Core Cube</title>
+<style>
+  html, body {
+    margin: 0;
+    overflow: hidden;
+    background: black;
+  }
+  #label {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    font-family: monospace;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+  }
+</style>
+</head>
+
+<body>
+<a href="3d3.html"><div id="label">A REVOLUTIONARY</div></a>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/* ==================================================
+   SCENE SETUP
+================================================== */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(
+  45, window.innerWidth / window.innerHeight, 0.1, 1000
+);
+camera.position.z = 9;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+/* ==================================================
+   COLOR PROFILE
+================================================== */
+const colorInner = new THREE.Color(0xff27d4);
+const colorMid   = new THREE.Color(0x584bff);
+const colorOuter = new THREE.Color(0x04f0ff);
+
+/* ==================================================
+   OUTER CUBES (≈12)
+================================================== */
+const outerGroup = new THREE.Group();
+scene.add(outerGroup);
+
+const OUTER_COUNT = 12;
+const OUTER_BASE = 3.2;
+
+for (let i = 0; i < OUTER_COUNT; i++) {
+  const t = i / (OUTER_COUNT - 1);
+
+  const size = OUTER_BASE * (1 - i * 0.07);
+
+  const geom = new THREE.BoxGeometry(size, size, size);
+  const edges = new THREE.EdgesGeometry(geom);
+
+  // color gradient
+  let color;
+  if (t < 0.5) color = colorInner.clone().lerp(colorMid, t * 2);
+  else color = colorMid.clone().lerp(colorOuter, (t - 0.5) * 2);
+
+  const mat = new THREE.LineBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 0.85
+  });
+
+  const cube = new THREE.LineSegments(edges, mat);
+
+  // store unique rotation offsets
+  cube.userData.rx = Math.random() * 1.5 + 0.3;
+  cube.userData.ry = Math.random() * 1.5 + 0.3;
+  cube.userData.rz = Math.random() * 1.5 + 0.3;
+
+  outerGroup.add(cube);
+}
+
+/* ==================================================
+   INNER CORE CUBES (15 small cubes)
+================================================== */
+const coreGroup = new THREE.Group();
+scene.add(coreGroup);
+
+const CORE_COUNT = 15;
+const CORE_BASE = 1.1;
+
+for (let i = 0; i < CORE_COUNT; i++) {
+  const size = CORE_BASE * (1 - i * 0.06);
+
+  const geom = new THREE.BoxGeometry(size, size, size);
+  const edges = new THREE.EdgesGeometry(geom);
+
+  const color = colorInner.clone().lerp(colorOuter, i / CORE_COUNT);
+
+  const mat = new THREE.LineBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 0.95
+  });
+
+  const cube = new THREE.LineSegments(edges, mat);
+
+  // individual movement directions
+  cube.userData.rx = (Math.random() - 0.5) * 2.0;
+  cube.userData.ry = (Math.random() - 0.5) * 2.0;
+  cube.userData.rz = (Math.random() - 0.5) * 2.0;
+
+  coreGroup.add(cube);
+}
+
+/* ==================================================
+   ANIMATION
+   Periodically collapses cubes into flat squares
+================================================== */
+function animate(time) {
+  time *= 0.001;
+
+  // collapse factor (0 = flat, 1 = full 3D)
+  const collapse = (Math.sin(time * 1.2) + 1) / 2;  
+  const collapseEase = Math.pow(collapse, 1.6);
+
+  /* --- OUTER CUBES --- */
+  outerGroup.children.forEach((cube, i) => {
+    cube.rotation.x = cube.userData.rx * collapseEase;
+    cube.rotation.y = cube.userData.ry * collapseEase;
+    cube.rotation.z = cube.userData.rz * collapseEase;
+
+    // subtle breathing motion
+    const wobble = Math.sin(time * 3 + i * 0.3) * 0.02;
+    cube.scale.setScalar(1 + wobble);
+  });
+
+  /* --- INNER CORE CUBES --- */
+  coreGroup.children.forEach((cube, i) => {
+    cube.rotation.x = cube.userData.rx * collapseEase * 1.8;
+    cube.rotation.y = cube.userData.ry * collapseEase * 1.8;
+    cube.rotation.z = cube.userData.rz * collapseEase * 1.8;
+
+    // fast pulsation
+    const wobble = Math.sin(time * 5 + i * 0.4) * 0.05;
+    cube.scale.setScalar(1 + wobble);
+  });
+
+  // gentle group rotations
+  outerGroup.rotation.y = time * 0.3;
+  coreGroup.rotation.y = -time * 0.5;
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+animate();
+
+/* ==================================================
+   RESIZE
+================================================== */
+window.addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Neon Cube Collapse Animation</title>
+<style>
+  html, body { margin: 0; overflow: hidden; background: black; }
+  #label {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    color: white;
+    font-family: monospace;
+    font-size: 22px;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+<a src="3d2.html">
+  <div id="label">GET READY!</div></a>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+<script>
+/* ---------------------------------------------------------
+   SCENE + CAMERA + RENDERER
+--------------------------------------------------------- */
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.1, 1000);
+camera.position.z = 10;
+
+const renderer = new THREE.WebGLRenderer({ antialias:true });
+renderer.setSize(innerWidth, innerHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+document.body.appendChild(renderer.domElement);
+
+/* ---------------------------------------------------------
+   CREATE CUBES
+--------------------------------------------------------- */
+const NUM_CUBES = 14;
+const cubes = [];
+const baseColorInner = new THREE.Color(0xff27d4);
+const baseColorOuter = new THREE.Color(0x04f0ff);
+
+for (let i = 0; i < NUM_CUBES; i++) {
+  const t = i / (NUM_CUBES - 1);
+  const color = baseColorInner.clone().lerp(baseColorOuter, t);
+
+  const size = 3 - i * 0.18;
+
+  const geom = new THREE.BoxGeometry(size, size, size);
+  const edges = new THREE.EdgesGeometry(geom);
+  const mat = new THREE.LineBasicMaterial({
+    color: color,
+    transparent: true,
+    opacity: 1
+  });
+  const mesh = new THREE.LineSegments(edges, mat);
+
+  // depth stacking
+  mesh.position.z = -i * 0.18;
+
+  // random rotation axes for the 3D phase
+  mesh.userData.rx = (Math.random() * 0.8 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
+  mesh.userData.ry = (Math.random() * 0.8 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
+  mesh.userData.rz = (Math.random() * 0.8 + 0.2) * (Math.random() < 0.5 ? -1 : 1);
+
+  cubes.push(mesh);
+  scene.add(mesh);
+}
+
+/* ---------------------------------------------------------
+   ANIMATION — ROTATE → COLLAPSE FLAT → ROTATE → FLAT
+--------------------------------------------------------- */
+function anim(time) {
+  time *= 0.001;
+
+  // cycle length (seconds)
+  const cycle = 3.2;  
+  const t = (time % cycle) / cycle;
+
+  let collapse = 0;
+
+  if (t < 0.25) {
+    // full 3D rotation
+    collapse = 0;
+  } else if (t < 0.45) {
+    // interpolate INTO flat
+    collapse = (t - 0.25) / 0.20;
+  } else if (t < 0.70) {
+    // fully flat
+    collapse = 1;
+  } else if (t < 0.90) {
+    // interpolate OUT of flat
+    collapse = 1 - ((t - 0.70) / 0.20);
+  } else {
+    // full 3D rotation
+    collapse = 0;
+  }
+
+  cubes.forEach((cube, i) => {
+    const speed = 0.6 + i * 0.03;
+
+    if (collapse === 1) {
+      cube.rotation.set(0, 0, 0);
+    } else {
+      const d = 1 - collapse;
+      cube.rotation.x = cube.userData.rx * time * speed * d;
+      cube.rotation.y = cube.userData.ry * time * speed * d;
+      cube.rotation.z = cube.userData.rz * time * speed * d;
+    }
+  });
+
+  renderer.render(scene, camera);
+  requestAnimationFrame(anim);
+}
+
+anim(0);
+
+/* ---------------------------------------------------------
+   RESIZE
+--------------------------------------------------------- */
+addEventListener("resize", () => {
+  camera.aspect = innerWidth / innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(innerWidth, innerHeight);
+});
+</script>
+
+</body>
+</html>
